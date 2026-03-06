@@ -27,11 +27,6 @@ class ProductRepositoryImpl @Inject constructor(
 ) : ProductRepository {
 
     override fun getProducts(skip: Int, limit: Int): Flow<DataResult<List<Product>>> = flow {
-        val cached = dao.getProducts(limit = limit, offset = skip)
-        if (cached.isNotEmpty()) {
-            emit(DataResult.Success(cached.map { it.toDomain() }, isFromCache = true))
-        }
-
         try {
             val response = api.getProducts(limit = limit, skip = skip)
             val entities = response.products.map { it.toEntity() }
@@ -41,18 +36,16 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            val cached = dao.getProducts(limit = limit, offset = skip)
             if (cached.isEmpty()) {
                 emit(DataResult.Error(e.toAppError()))
+            } else {
+                emit(DataResult.Success(cached.map { it.toDomain() }, isFromCache = true))
             }
         }
     }
 
     override fun getProductById(id: Int): Flow<DataResult<Product>> = flow {
-        val cached = dao.getProductById(id)
-        if (cached != null) {
-            emit(DataResult.Success(cached.toDomain(), isFromCache = true))
-        }
-
         try {
             val dto = api.getProductById(id)
             val entity = dto.toEntity()
@@ -61,18 +54,16 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            val cached = dao.getProductById(id)
             if (cached == null) {
                 emit(DataResult.Error(e.toAppError()))
+            } else {
+                emit(DataResult.Success(cached.toDomain(), isFromCache = true))
             }
         }
     }
 
     override fun getCategories(): Flow<DataResult<List<Category>>> = flow {
-        val cached = categoryDao.getAll()
-        if (cached.isNotEmpty()) {
-            emit(DataResult.Success(cached.map { Category(slug = it.slug, name = it.name) }, isFromCache = true))
-        }
-
         try {
             val dtos = api.getCategories()
             val entities = dtos.map { CategoryEntity(slug = it.slug, name = it.name) }
@@ -82,18 +73,16 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            val cached = categoryDao.getAll()
             if (cached.isEmpty()) {
                 emit(DataResult.Error(e.toAppError()))
+            } else {
+                emit(DataResult.Success(cached.map { Category(slug = it.slug, name = it.name) }, isFromCache = true))
             }
         }
     }
 
     override fun getProductsByCategory(slug: String, skip: Int, limit: Int): Flow<DataResult<List<Product>>> = flow {
-        val cached = dao.getProductsByCategory(slug = slug, limit = limit, offset = skip)
-        if (cached.isNotEmpty()) {
-            emit(DataResult.Success(cached.map { it.toDomain() }, isFromCache = true))
-        }
-
         try {
             val response = api.getProductsByCategory(slug = slug, limit = limit, skip = skip)
             val entities = response.products.map { it.toEntity() }
@@ -103,8 +92,11 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            val cached = dao.getProductsByCategory(slug = slug, limit = limit, offset = skip)
             if (cached.isEmpty()) {
                 emit(DataResult.Error(e.toAppError()))
+            } else {
+                emit(DataResult.Success(cached.map { it.toDomain() }, isFromCache = true))
             }
         }
     }

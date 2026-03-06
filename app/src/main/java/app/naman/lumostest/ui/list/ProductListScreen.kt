@@ -105,6 +105,7 @@ fun ProductListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val categoriesState by viewModel.categoriesState.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isFromCache = (uiState as? UiState.Success)?.isFromCache == true
@@ -177,7 +178,7 @@ fun ProductListScreen(
 
             // Right: product list
             PullToRefreshBox(
-                isRefreshing = uiState is UiState.Loading,
+                isRefreshing = isRefreshing,
                 onRefresh = { viewModel.loadProducts(refresh = true) },
                 modifier = Modifier
                     .weight(1f)

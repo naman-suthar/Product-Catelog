@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -64,12 +64,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import app.naman.lumostest.domain.model.Product
 import app.naman.lumostest.ui.UiState
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -194,29 +196,34 @@ private fun ProductDetail(
 
             // Dot indicator
             if (images.size > 1) {
+                val inactiveDotWidth = 7.dp
+                val activeDotWidth = 20.dp
+                val dotHeight = 7.dp
+                val dotSpacing = 6.dp
+                val pagePosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(bottom = 16.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.Black.copy(alpha = 0.32f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(dotSpacing),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    repeat(images.size) { i ->
-                        val isSelected = i == pagerState.currentPage
-                        val dotWidth by animateDpAsState(
-                            targetValue = if (isSelected) 20.dp else 7.dp,
-                            animationSpec = tween(250),
-                            label = "dot-$i"
-                        )
+                    repeat(images.size) { index ->
+                        val distance = abs(pagePosition - index).coerceIn(0f, 1f)
+                        val selectedness = 1f - distance
+                        val width = lerp(inactiveDotWidth, activeDotWidth, selectedness)
+                        val alpha = 0.42f + (0.58f * selectedness)
+
                         Box(
                             modifier = Modifier
-                                .height(7.dp)
-                                .width(dotWidth)
+                                .height(dotHeight)
+                                .width(width)
                                 .clip(CircleShape)
-                                .background(
-                                    if (isSelected) Color.White
-                                    else Color.White.copy(alpha = 0.45f)
-                                )
+                                .background(Color.White.copy(alpha = alpha))
                         )
                     }
                 }

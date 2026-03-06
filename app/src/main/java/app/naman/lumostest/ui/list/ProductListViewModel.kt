@@ -30,6 +30,9 @@ class ProductListViewModel @Inject constructor(
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _categoriesState = MutableStateFlow<UiState<List<Category>>>(UiState.Loading)
     val categoriesState: StateFlow<UiState<List<Category>>> = _categoriesState.asStateFlow()
 
@@ -39,6 +42,7 @@ class ProductListViewModel @Inject constructor(
     private var currentSkip = 0
     private var canLoadMore = true
     private val allProducts = mutableListOf<Product>()
+    private var loadProductsJob: Job? = null
     private var loadMoreJob: Job? = null
 
     init {
@@ -71,31 +75,41 @@ class ProductListViewModel @Inject constructor(
     }
 
     fun loadProducts(refresh: Boolean = false) {
+        loadProductsJob?.cancel()
         if (refresh) {
             currentSkip = 0
             canLoadMore = true
-            allProducts.clear()
-            _uiState.value = UiState.Loading
+            if (_uiState.value is UiState.Success) {
+                _isRefreshing.value = true
+            } else {
+                allProducts.clear()
+                _uiState.value = UiState.Loading
+            }
         }
-        viewModelScope.launch {
+        loadProductsJob = viewModelScope.launch {
             buildProductFlow(skip = currentSkip).collect { result ->
                 when (result) {
                     is DataResult.Success -> {
+                        if (refresh) allProducts.clear()
                         if (result.data.isEmpty() && allProducts.isEmpty()) {
                             _uiState.value = UiState.Empty
                         } else {
                             canLoadMore = result.data.size >= PAGE_SIZE
-                            allProducts.addAll(result.data)
+                            val seenIds = allProducts.asSequence().map { it.id }.toMutableSet()
+                            val uniqueNew = result.data.filter { seenIds.add(it.id) }
+                            allProducts.addAll(uniqueNew)
                             _uiState.value = UiState.Success(
                                 data = allProducts.toList(),
                                 isFromCache = result.isFromCache
                             )
                         }
+                        _isRefreshing.value = false
                     }
                     is DataResult.Error -> {
                         if (allProducts.isEmpty()) {
                             _uiState.value = UiState.Error(result.error)
                         }
+                        _isRefreshing.value = false
                     }
                 }
             }
@@ -103,7 +117,7 @@ class ProductListViewModel @Inject constructor(
     }
 
     fun loadNextPage() {
-        if (!canLoadMore || _isLoadingMore.value) return
+        if (!canLoadMore || _isLoadingMore.value || _isRefreshing.value) return
         val current = _uiState.value
         if (current !is UiState.Success) return
 

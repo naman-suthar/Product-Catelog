@@ -126,7 +126,7 @@ class ProductRepositoryImplTest {
     }
 
     @Test
-    fun `getProducts emits cache first then network`() = runTest {
+    fun `getProducts prefers network when available even if cache exists`() = runTest {
         coEvery { dao.getProducts(any(), any()) } returns listOf(sampleEntity)
         coEvery { api.getProducts(any(), any()) } returns ProductsResponseDto(
             products = listOf(sampleDto),
@@ -137,9 +137,8 @@ class ProductRepositoryImplTest {
 
         val emissions = repository.getProducts(skip = 0, limit = 20).toList()
 
-        assertEquals(2, emissions.size)
-        assertTrue((emissions[0] as DataResult.Success).isFromCache)
-        assertFalse((emissions[1] as DataResult.Success).isFromCache)
+        assertEquals(1, emissions.size)
+        assertFalse((emissions[0] as DataResult.Success).isFromCache)
     }
 
     @Test
